@@ -28,38 +28,36 @@ jobs:
 
     - name: Install and Configure Android NDK
       run: |
-        sdkmanager "ndk;25.2.9519653"
-        NDK_PATH="$ANDROID_SDK_ROOT/ndk/25.2.9519653"
+        # Use the EXACT version requested by the project: 25.1.8937393
+        sdkmanager "ndk;25.1.8937393"
         
-        # Write local.properties directly into the library module
+        NDK_PATH="$ANDROID_SDK_ROOT/ndk/25.1.8937393"
+        
+        # Ensure the directory exists before writing properties
         mkdir -p pkg/android
         echo "sdk.dir=$ANDROID_SDK_ROOT" > pkg/android/local.properties
         echo "ndk.dir=$NDK_PATH" >> pkg/android/local.properties
         
+        # Export to environment for the build script
         echo "ANDROID_NDK_HOME=$NDK_PATH" >> $GITHUB_ENV
         echo "NDK_PATH=$NDK_PATH" >> $GITHUB_ENV
 
     - name: Build libzt (Direct Gradle)
       run: |
-        chmod +x build.sh
-        # Force submodules one last time
+        # Ensure submodules are ready
         git submodule update --init --recursive
         
-        # Go directly to the android directory and run gradle
         cd pkg/android
         chmod +x gradlew
-        # We run with --stacktrace to see the REAL error
-        ./gradlew assembleRelease --stacktrace || echo "Gradle build failed, checking for partial outputs..."
+        # Run the build again; now that NDK versions match, it should proceed to compile
+        ./gradlew assembleRelease --stacktrace || echo "Gradle build failed, but checking for outputs..."
 
     - name: Locate AAR and Debug
       run: |
-        echo "Searching for any .aar files created..."
         mkdir -p final_output
-        
-        # Look specifically in the pkg/android directory tree
+        # Find any AARs in the pkg/android directory
         find pkg/android -name "*.aar" -exec cp {} final_output/ \;
-        
-        echo "Files found:"
+        echo "Files collected for upload:"
         ls -R final_output
 
     - name: Upload Artifact
