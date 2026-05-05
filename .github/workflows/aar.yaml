@@ -30,9 +30,12 @@ jobs:
     - name: Build (arm64-v8a only)
       # We pass the ABI filter to the build script or underlying Gradle
       run: ./build.sh android-aar "release" -DANDROID_ABI=arm64-v8a
-
+    - name: List files for debugging
+      run: find . -name "*.aar"
     - name: Upload Artifact
       uses: actions/upload-artifact@v4
       with:
-        name: libzt-arm64-v8a-aar
-        path: dist/
+        name: libzt-aar
+        # This search pattern looks for ANY .aar file in the entire project
+        path: "**/*.aar"
+        if-no-files-found: error # This will make the job fail if it can't find the file
