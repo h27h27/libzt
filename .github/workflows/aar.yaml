@@ -21,25 +21,32 @@ jobs:
         java-version: '17'
         distribution: 'temurin'
 
-    - name: Setup Android NDK
+    # This handles the SDK paths and tool setup automatically
+    - name: Setup Android SDK
+      uses: android-actions/setup-android@v3
+
+    - name: Install Android NDK
       run: |
-        # Install a specific, stable NDK version
+        # Use the sdkmanager now that it's in the PATH
         sdkmanager "ndk;25.2.9519653"
+        
+        # Define the NDK path for libzt
         export NDK_PATH=$ANDROID_SDK_ROOT/ndk/25.2.9519653
         
-        # Create local.properties so Gradle knows where the SDK/NDK are
+        # Ensure Gradle in the subfolder can find the SDK/NDK
+        mkdir -p pkg/android
         echo "sdk.dir=$ANDROID_SDK_ROOT" > pkg/android/local.properties
         echo "ndk.dir=$NDK_PATH" >> pkg/android/local.properties
         
-        # Set environment variables for the shell
+        # Pass variables to subsequent steps
         echo "ANDROID_NDK_HOME=$NDK_PATH" >> $GITHUB_ENV
         echo "NDK_PATH=$NDK_PATH" >> $GITHUB_ENV
 
     - name: Build
-      # Added a 'chmod' just in case the script lost execution permissions
       run: |
         chmod +x build.sh
-        ./build.sh android-aar "release"
+        # Targeting only arm64-v8a as discussed
+        ./build.sh android-aar "release" -DANDROID_ABI=arm64-v8a
     - name: List files for debugging
       run: find . -name "*.aar"
     - name: Upload Artifact
