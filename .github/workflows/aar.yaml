@@ -39,31 +39,27 @@ jobs:
         echo "ANDROID_NDK_HOME=$NDK_PATH" >> $GITHUB_ENV
         echo "NDK_PATH=$NDK_PATH" >> $GITHUB_ENV
 
-    - name: Build libzt
+    - name: Build libzt (Direct Gradle)
       run: |
         chmod +x build.sh
-        # Force submodule update again just in case checkout missed a nested layer
+        # Force submodules one last time
         git submodule update --init --recursive
         
-        # Execute build. We use '|| true' because build.sh fails on the 'cp' 
-        # command even if the .aar was built successfully.
-        ./build.sh android-aar "release" -DANDROID_ABI=arm64-v8a || true
+        # Go directly to the android directory and run gradle
+        cd pkg/android
+        chmod +x gradlew
+        # We run with --stacktrace to see the REAL error
+        ./gradlew assembleRelease --stacktrace || echo "Gradle build failed, checking for partial outputs..."
 
     - name: Locate AAR and Debug
       run: |
-        echo "Checking for the AAR file in the Gradle output folder..."
-        # This is the standard location where Gradle puts the built library
-        SEARCH_DIR="pkg/android/libzt/build/outputs/aar"
-        
+        echo "Searching for any .aar files created..."
         mkdir -p final_output
-        if [ -d "$SEARCH_DIR" ]; then
-            cp $SEARCH_DIR/*.aar final_output/ || echo "No AAR in Gradle folder"
-        fi
         
-        # Search the whole project as a backup
-        find . -name "*.aar" -exec cp {} final_output/ \;
+        # Look specifically in the pkg/android directory tree
+        find pkg/android -name "*.aar" -exec cp {} final_output/ \;
         
-        echo "Final files ready for upload:"
+        echo "Files found:"
         ls -R final_output
 
     - name: Upload Artifact
