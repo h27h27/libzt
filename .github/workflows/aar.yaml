@@ -26,19 +26,27 @@ jobs:
     - name: Setup Android SDK
       uses: android-actions/setup-android@v3
 
-    - name: Install and Configure Android NDK
+    - name: Install and Configure Android NDK & CMake
       run: |
-        # Use the EXACT version requested by the project: 25.1.8937393
-        sdkmanager "ndk;25.1.8937393"
+        # Install the EXACT NDK and CMake versions requested by the project
+        sdkmanager "ndk;25.1.8937393" "cmake;3.22.1"
         
         NDK_PATH="$ANDROID_SDK_ROOT/ndk/25.1.8937393"
+        CMAKE_PATH="$ANDROID_SDK_ROOT/cmake/3.22.1/bin"
         
-        # Ensure the directory exists before writing properties
+        # Ensure the directory exists
         mkdir -p pkg/android
+        
+        # local.properties helps Gradle find everything
         echo "sdk.dir=$ANDROID_SDK_ROOT" > pkg/android/local.properties
         echo "ndk.dir=$NDK_PATH" >> pkg/android/local.properties
+        # Tell Gradle exactly where the requested CMake is
+        echo "cmake.dir=$ANDROID_SDK_ROOT/cmake/3.22.1" >> pkg/android/local.properties
         
-        # Export to environment for the build script
+        # Add CMake to the system PATH for this job
+        echo "$CMAKE_PATH" >> $GITHUB_PATH
+        
+        # Export environment variables for the build script
         echo "ANDROID_NDK_HOME=$NDK_PATH" >> $GITHUB_ENV
         echo "NDK_PATH=$NDK_PATH" >> $GITHUB_ENV
 
