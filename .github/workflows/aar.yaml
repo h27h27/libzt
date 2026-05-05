@@ -13,6 +13,8 @@ jobs:
     - name: Checkout Code
       uses: actions/checkout@v4
       with:
+        # We need the full history and submodules for ZeroTier core
+        fetch-depth: 0
         submodules: 'recursive'
 
     - name: Set up JDK 17
@@ -21,38 +23,52 @@ jobs:
         java-version: '17'
         distribution: 'temurin'
 
-    # This handles the SDK paths and tool setup automatically
     - name: Setup Android SDK
       uses: android-actions/setup-android@v3
 
-    - name: Install Android NDK
+    - name: Install and Configure Android NDK
       run: |
-        # Use the sdkmanager now that it's in the PATH
         sdkmanager "ndk;25.2.9519653"
+        NDK_PATH="$ANDROID_SDK_ROOT/ndk/25.2.9519653"
         
-        # Define the NDK path for libzt
-        export NDK_PATH=$ANDROID_SDK_ROOT/ndk/25.2.9519653
-        
-        # Ensure Gradle in the subfolder can find the SDK/NDK
+        # Write local.properties directly into the library module
         mkdir -p pkg/android
         echo "sdk.dir=$ANDROID_SDK_ROOT" > pkg/android/local.properties
         echo "ndk.dir=$NDK_PATH" >> pkg/android/local.properties
         
-        # Pass variables to subsequent steps
         echo "ANDROID_NDK_HOME=$NDK_PATH" >> $GITHUB_ENV
         echo "NDK_PATH=$NDK_PATH" >> $GITHUB_ENV
 
-    - name: Build
+    - name: Build libzt
       run: |
         chmod +x build.sh
-        # Targeting only arm64-v8a as discussed
-        ./build.sh android-aar "release" -DANDROID_ABI=arm64-v8a
-    - name: List files for debugging
-      run: find . -name "*.aar"
+        # Force submodule update again just in case checkout missed a nested layer
+        git submodule update --init --recursive
+        
+        # Execute build. We use '|| true' because build.sh fails on the 'cp' 
+        # command even if the .aar was built successfully.
+        ./build.sh android-aar "release" -DANDROID_ABI=arm64-v8a || true
+
+    - name: Locate AAR and Debug
+      run: |
+        echo "Checking for the AAR file in the Gradle output folder..."
+        # This is the standard location where Gradle puts the built library
+        SEARCH_DIR="pkg/android/libzt/build/outputs/aar"
+        
+        mkdir -p final_output
+        if [ -d "$SEARCH_DIR" ]; then
+            cp $SEARCH_DIR/*.aar final_output/ || echo "No AAR in Gradle folder"
+        fi
+        
+        # Search the whole project as a backup
+        find . -name "*.aar" -exec cp {} final_output/ \;
+        
+        echo "Final files ready for upload:"
+        ls -R final_output
+
     - name: Upload Artifact
       uses: actions/upload-artifact@v4
       with:
-        name: libzt-aar
-        # This search pattern looks for ANY .aar file in the entire project
-        path: "**/*.aar"
-        if-no-files-found: error # This will make the job fail if it can't find the file
+        name: libzt-android-v8a
+        path: final_output/
+        if-no-files-found: error
