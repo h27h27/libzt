@@ -2,7 +2,7 @@ name: Build Android AAR
 
 on: [workflow_dispatch]
 
-# Opt into Node.js 24 early to ensure everything works before June 2nd
+# This tells GitHub to use Node.js 24 immediately for all actions
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
@@ -11,25 +11,24 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      # Updated to v4 which supports the latest Node runtimes
-      - name: Checkout
-        uses: actions/checkout@v4
-        with:
-          submodules: 'recursive'
+    # Changed from v2 to v4
+    - name: Checkout Code
+      uses: actions/checkout@v4
+      with:
+        submodules: 'recursive'
 
-      # Build scripts for libzt usually need a JDK to package the AAR
-      - name: Set up JDK 17
-        uses: actions/setup-java@v4
-        with:
-          java-version: '17'
-          distribution: 'temurin'
+    - name: Set up JDK 17
+      uses: actions/setup-java@v4
+      with:
+        java-version: '17'
+        distribution: 'temurin'
 
-      - name: Build
-        run: ./build.sh android-aar "release"
+    - name: Build
+      run: ./build.sh android-aar "release"
 
-      # Updated to v4 to avoid the deprecated v2 version
-      - name: Upload Artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: libzt-aar
-          path: dist
+    # Changed from v2 to v4
+    - name: Upload Artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: libzt-aar
+        path: dist
