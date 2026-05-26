@@ -33,6 +33,16 @@ jobs:
         sudo $ANDROID_HOME/tools/bin/sdkmanager --install "ndk;25.1.8937393"
         echo "ANDROID_NDK_HOME=$ANDROID_HOME/ndk/25.1.8937393" >> $GITHUB_ENV
     
+    - name: Patch prometheus-cpp-lite headers
+      run: |
+        # Fix missing <stdexcept> includes in prometheus-cpp-lite
+        for file in family.h registry.h benchmark.h; do
+          if ! grep -q "#include <stdexcept>" "ext/ZeroTierOne/ext/prometheus-cpp-lite-1.0/core/include/prometheus/$file"; then
+            sed -i '/#include <chrono>/a #include <stdexcept>' "ext/ZeroTierOne/ext/prometheus-cpp-lite-1.0/core/include/prometheus/$file" 2>/dev/null || \
+            sed -i '/#include <vector>/a #include <stdexcept>' "ext/ZeroTierOne/ext/prometheus-cpp-lite-1.0/core/include/prometheus/$file"
+          fi
+        done
+    
     - name: Build Android AAR
       run: |
         chmod +x build.sh
